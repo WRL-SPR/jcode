@@ -78,7 +78,8 @@ jobs:
           foreach ($suite in $suites) {
             $name = $suite -join ' '
             Write-Host "cargo test --locked $name"
-            $out = & cargo test --locked @suite 2>&1 | ForEach-Object { "$_" }
+            # CARGO_TERM_COLOR=always라 색 코드를 지워야 '^error' 같은 줄 검사가 맞는다.
+            $out = & cargo test --locked @suite 2>&1 | ForEach-Object { "$_" -replace "`e\[[0-9;]*[A-Za-z]", '' }
             $code = $LASTEXITCODE
             $out | ForEach-Object { Write-Host $_ }
             if ($code -ne 0) {
@@ -93,6 +94,8 @@ jobs:
                   if ($line -eq '') { $take = 0 }
                 }
               }
+              # 패턴에 걸린 줄이 없으면(프로세스 비정상 종료 등) 출력 끝부분을 남긴다.
+              if ($picked.Count -eq 0) { $picked.AddRange([string[]]($out | Select-Object -Last 60)) }
               $msg = ($picked | Select-Object -First 200) -join "`n"
               if ($msg.Length -gt 12000) { $msg = $msg.Substring(0, 12000) }
               $msg = $msg.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
