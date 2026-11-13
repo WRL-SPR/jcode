@@ -432,6 +432,10 @@ pub(super) fn draw_help_overlay(frame: &mut Frame, area: Rect, scroll: usize, ap
         "Set or clear current session name",
     ));
     lines.push(help_entry(
+        "/cd [path]",
+        "Change or show the session working directory",
+    ));
+    lines.push(help_entry(
         "/unsave",
         "Remove bookmark from current session",
     ));

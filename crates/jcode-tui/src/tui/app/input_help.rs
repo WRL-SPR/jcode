@@ -223,6 +223,9 @@ impl App {
             "rename" => {
                 "/rename <session name>\nSet a custom display title for the current session. This updates the window title and /resume display.\n\n/rename --clear\nClear the custom name and return to the generated session title."
             }
+            "cd" => {
+                "/cd\nShow the current session working directory.\n\n/cd <path>\nChange the working directory for tools and ! shell commands in this session. Supports ~ and paths relative to the current working directory. The new directory is saved with the session, so /resume keeps it."
+            }
             "unsave" => "/unsave\nRemove the bookmark from the current session.",
             "client-reload" if self.is_remote => {
                 "/client-reload\nForce client binary reload in remote mode."

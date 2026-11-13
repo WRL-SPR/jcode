@@ -212,6 +212,7 @@ const REGISTERED_COMMANDS: &[RegisteredCommand] = &[
     RegisteredCommand::public("/save", "Bookmark session for easy access"),
     RegisteredCommand::public("/unsave", "Remove bookmark from session"),
     RegisteredCommand::public("/rename", "Rename current session"),
+    RegisteredCommand::public("/cd", "Change or show the session working directory"),
     RegisteredCommand::public("/fork", "Fork session into a new window (optional prompt)"),
     RegisteredCommand::hidden("/split", "Alias for /fork"),
     RegisteredCommand::public("/desktop", "Open this session in Jcode Desktop"),
@@ -1782,6 +1783,7 @@ impl App {
                 | "/config"
                 | "/save"
                 | "/rename"
+                | "/cd"
                 | "/cache"
         )
     }

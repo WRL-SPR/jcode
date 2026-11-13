@@ -121,6 +121,7 @@ A blocked command must not silently execute against the laptop.
 | `/server-reload` | Wire | Explicit request to reload the remote daemon. Requires an available remote binary. |
 | `/resume`, `/sessions`, `/session`, `/active`, `/catchup`, `/back`, `/save`, `/unsave` | Wire + Runtime | List/select host sessions, replay current history, navigate back and persist host bookmarks. `/resume <remote-id>` switches this terminal, without consulting local session files. |
 | `/rename` | Wire | Rename attached server session, including `--clear`. |
+| `/cd` | Runtime | Resolve the path on the host against the session working directory and save it to the host session. The laptop process directory is unchanged. |
 | `/fork`, `/split`, `/transfer` | Wire | Create a daemon-side child and navigate this terminal only after the matching response. No local child-window launch or VM path lookup. |
 | `/desktop`, `/workspace` | Blocked | Local child-window launch does not yet have a remote-safe Desktop/workspace transport contract. |
 | `/cloud`, `/local` | Coordinated handoff | Cloud orchestration is explicit. Moving an already remote session to cloud is rejected. `/local` coordinates return, not an arbitrary local command fallback. Requires configured cloud authority and successful handoff checks. |

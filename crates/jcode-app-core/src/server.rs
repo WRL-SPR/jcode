@@ -57,6 +57,7 @@ mod reload_recovery;
 mod reload_state;
 mod reload_trace;
 mod runtime;
+mod runtime_change_dir;
 mod runtime_commands;
 mod runtime_special_commands;
 mod runtime_ssh_accounts;

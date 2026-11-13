@@ -372,6 +372,18 @@ pub(in crate::tui::app) async fn submit_prepared_remote_enter_input(
             return Ok(());
         }
 
+        // /cd는 에이전트가 도는 데몬에서 경로를 해석·적용한다. 결과는 runtime_command_result로 온다.
+        if trimmed == "/cd" || trimmed.starts_with("/cd ") {
+            let path = trimmed.strip_prefix("/cd").unwrap_or_default().trim();
+            let args = if path.is_empty() {
+                Vec::new()
+            } else {
+                vec![path.to_string()]
+            };
+            remote.runtime_command("cd", args).await?;
+            return Ok(());
+        }
+
         if crate::tui::is_ssh_remote() && trimmed == "/client-reload" {
             let Some(session_id) = app
                 .remote_session_id

@@ -1882,6 +1882,63 @@ pub(super) fn handle_session_command(app: &mut App, trimmed: &str) -> bool {
         return true;
     }
 
+    if trimmed == "/cd" || trimmed.starts_with("/cd ") {
+        let path = trimmed.strip_prefix("/cd").unwrap_or_default().trim();
+        let current = active_working_dir(app);
+        if path.is_empty() {
+            let message = match current {
+                Some(dir) => format!("Working directory: {}", dir.display()),
+                None => "Working directory is not set.".to_string(),
+            };
+            app.push_display_message(DisplayMessage::system(message));
+            return true;
+        }
+        if app.is_remote {
+            // 원격 세션의 작업 디렉터리는 서버 에이전트가 소유한다. 여기서 바꾸면 서버 저장분과 어긋난다.
+            app.push_display_message(DisplayMessage::error(
+                "/cd needs a connected server session. Reconnect and retry.",
+            ));
+            return true;
+        }
+
+        let base = current.or_else(|| std::env::current_dir().ok());
+        let home = dirs::home_dir();
+        let dir =
+            match crate::change_dir::resolve_change_dir(path, base.as_deref(), home.as_deref()) {
+                Ok(dir) => dir.display().to_string(),
+                Err(message) => {
+                    app.push_display_message(DisplayMessage::error(message));
+                    app.set_status_notice("cd failed");
+                    return true;
+                }
+            };
+
+        // 로컬 모드는 이 TUI가 세션을 직접 저장한다. 규칙은 Agent::set_working_dir와 같다.
+        if app.session.original_working_dir.is_none()
+            && app
+                .session
+                .messages
+                .iter()
+                .any(|message| message.role == Role::User)
+        {
+            app.session.original_working_dir = app.session.working_dir.clone();
+        }
+        app.session.working_dir = Some(dir.clone());
+        app.session.refresh_initial_session_context_message();
+        if let Err(e) = app.session.save() {
+            app.push_display_message(DisplayMessage::error(format!(
+                "Failed to save working directory: {}",
+                e
+            )));
+            return true;
+        }
+        sync_client_working_dir(app, &dir);
+        app.push_display_message(DisplayMessage::system(format!(
+            "Working directory changed to {dir}"
+        )));
+        return true;
+    }
+
     if trimmed == "/rename" || trimmed.starts_with("/rename ") {
         let title = trimmed.strip_prefix("/rename").unwrap_or_default().trim();
         if title.is_empty() {
@@ -2870,6 +2927,21 @@ pub(super) fn active_working_dir(app: &App) -> Option<std::path::PathBuf> {
         .working_dir
         .as_deref()
         .map(std::path::PathBuf::from)
+}
+
+/// `/cd` 성공 후 TUI 쪽 세션 상태와 프로세스 cwd를 새 디렉터리로 맞춘다.
+pub(super) fn sync_client_working_dir(app: &mut App, dir: &str) {
+    app.session.working_dir = Some(dir.to_string());
+    // 재연결 subscribe는 프로세스 cwd를 보고하므로 같이 옮겨야 /cd가 되돌아가지 않는다.
+    // SSH 원격은 경로가 원격 호스트 기준이라 로컬 프로세스 cwd는 건드리지 않는다.
+    if !crate::tui::is_ssh_remote()
+        && let Err(error) = std::env::set_current_dir(dir)
+    {
+        crate::logging::warn(&format!(
+            "Could not change client working directory to {dir}: {error}"
+        ));
+    }
+    app.set_status_notice(format!("cwd: {dir}"));
 }
 
 pub(super) fn handle_dictation_command(app: &mut App, trimmed: &str) -> bool {

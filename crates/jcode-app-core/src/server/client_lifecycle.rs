@@ -2323,6 +2323,14 @@ pub(super) async fn handle_client(
                     if let Some(result) = super::runtime_ssh_loops::control(&client_session_id, &command, &args)? {
                         return Ok(result);
                     }
+                    // /cd: 턴 도중 도구가 쓰는 디렉터리가 바뀌지 않도록 유휴 상태에서만 허용한다.
+                    if super::runtime_change_dir::handles(&command) {
+                        if client_is_processing || crate::turn_cancel_registry::has_active_turn(&client_session_id) {
+                            anyhow::bail!("Session is busy. Run /cd after the current turn.");
+                        }
+                        let mut guard = agent.try_lock().map_err(|_| anyhow::anyhow!("Session is busy. Run /cd after the current turn."))?;
+                        return super::runtime_change_dir::execute(&mut guard, &args);
+                    }
                     // Supplemental SSH/cloud commands intentionally precede the shared
                     // enum parser so new host workflows do not require a wire-enum release.
                     if super::runtime_ssh_sessions::handles(&command)

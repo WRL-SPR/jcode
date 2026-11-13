@@ -476,6 +476,13 @@ impl Agent {
         self.log_env_snapshot("working_dir");
     }
 
+    /// `/cd`로 작업 디렉터리를 바꾸고 세션 파일에 저장해 resume 후에도 유지한다.
+    pub fn change_working_dir(&mut self, dir: &str) -> Result<()> {
+        self.set_working_dir(dir);
+        self.session.save()?;
+        Ok(())
+    }
+
     /// Get the working directory for this session
     pub fn working_dir(&self) -> Option<&str> {
         self.session.working_dir.as_deref()

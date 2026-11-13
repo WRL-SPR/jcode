@@ -407,6 +407,13 @@ fn handle_server_event_inner(
             app.auto_poke_incomplete_todos = enabled;
             app.auto_poke_default_on = enabled;
         }
+        if command == "cd"
+            && data["changed"].as_bool() == Some(true)
+            && let Some(dir) = data["working_dir"].as_str()
+        {
+            // 서버가 이미 저장했으므로 클라이언트 쪽 상태만 맞춘다.
+            crate::tui::app::commands::sync_client_working_dir(app, dir);
+        }
         app.push_display_message(DisplayMessage::system(message));
         return true;
     }
