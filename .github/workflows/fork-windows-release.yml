@@ -1,0 +1,111 @@
+# 포크(WRL-SPR/jcode) 전용 Windows 빌드·릴리스.
+# 원본 release.yml은 원본 저장소 비밀값(Azure 서명, Homebrew·AUR 키)이 필요하고
+# `v*` 태그에 반응하므로, 포크는 `wrl-v*` 태그로 이 워크플로만 실행한다.
+# - master push / 수동 실행: 이번 변경 테스트 + Windows 빌드 확인
+# - `wrl-v*` 태그 push: 위 확인 후 jcode.exe를 GitHub Release에 올린다 (서명 없음)
+name: Fork Windows Release
+
+on:
+  push:
+    branches: [master]
+    tags: ['wrl-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fork-windows-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  # .cargo/config.toml의 POSIX 셸 래퍼는 Windows에서 실행되지 않는다.
+  CARGO_BUILD_RUSTC_WRAPPER: ""
+  JCODE_CI: "1"
+
+jobs:
+  windows:
+    if: github.repository == 'WRL-SPR/jcode'
+    name: Test and build (x86_64-pc-windows-msvc)
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: fork-windows
+
+      - name: Test changed areas
+        shell: pwsh
+        run: |
+          $suites = @(
+            @("-p", "jcode-tui", "--lib", "--", "paste"),
+            @("-p", "jcode-tui", "--lib", "--", "newline"),
+            @("-p", "jcode-tui", "--lib", "--", "mouse"),
+            @("-p", "jcode-tui", "--lib", "--", "left_arrow_on_empty_input"),
+            @("-p", "jcode-base", "--lib", "--", "input_shell"),
+            @("-p", "jcode-base", "--lib", "--", "config"),
+            @("-p", "jcode-base", "--lib", "--", "mcp"),
+            @("-p", "jcode-app-core", "--lib", "--", "mcp"),
+            @("-p", "jcode-app-core", "--lib", "--", "windows_terminal_resume_args"),
+            @("-p", "jcode-app-core", "--lib", "--", "change_dir"),
+            @("-p", "jcode-tui", "--lib", "--", "registered_commands"),
+            @("-p", "jcode-tui", "--lib", "--", "ssh_slash_capability_matrix"),
+            @("-p", "jcode-tui-mermaid", "--lib", "--", "decide_mode"),
+            @("-p", "jcode-config-types"),
+            @("-p", "jcode-schema-dialect"),
+            @("-p", "jcode-provider-gemini-runtime")
+          )
+          foreach ($suite in $suites) {
+            Write-Host "cargo test --locked $($suite -join ' ')"
+            & cargo test --locked @suite
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Build release binary
+        shell: pwsh
+        run: |
+          & cargo build --locked --release --target x86_64-pc-windows-msvc --bin jcode
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify binary launches
+        shell: pwsh
+        run: |
+          & "target/x86_64-pc-windows-msvc/release/jcode.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw "jcode.exe --version failed" }
+
+      - name: Stage binary
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item "target/x86_64-pc-windows-msvc/release/jcode.exe" "dist/jcode-windows-x86_64.exe"
+          (Get-FileHash "dist/jcode-windows-x86_64.exe" -Algorithm SHA256).Hash.ToLower() |
+            Set-Content -NoNewline "dist/jcode-windows-x86_64.exe.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jcode-windows-x86_64
+          path: dist/
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/wrl-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/jcode-windows-x86_64.exe
+            dist/jcode-windows-x86_64.exe.sha256
+          generate_release_notes: true
+          prerelease: true
