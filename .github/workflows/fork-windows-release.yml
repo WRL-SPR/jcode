@@ -56,7 +56,8 @@ jobs:
           # 이번 변경 범위만 돌린다. 넓은 필터(config, mcp)는 원래부터 Windows에서 깨지는
           # 테스트(kagi 문서 CRLF 파싱, JCODE_RESUME_OPEN_ELSEWHERE 누락, mcp_remote_cache 시간)를 포함한다.
           $suites = @(
-            @("-p", "jcode-tui", "--lib", "--", "paste"),
+            # issue_1206_local_submit...: 공백을 '\ '로 escape하는 Unix 경로 전제라 Windows에서 원래부터 실패한다.
+            @("-p", "jcode-tui", "--lib", "--", "paste", "--skip", "issue_1206_local_submit_and_bracketed_paste_both_resolve_paths"),
             @("-p", "jcode-tui", "--lib", "--", "newline"),
             @("-p", "jcode-tui", "--lib", "--", "mouse"),
             @("-p", "jcode-tui", "--lib", "--", "left_arrow_on_empty_input"),
