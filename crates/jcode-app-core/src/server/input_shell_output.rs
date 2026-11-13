@@ -3,8 +3,11 @@ use super::*;
 pub(super) fn build_input_shell_command(command: &str) -> Command {
     #[cfg(windows)]
     {
-        let mut cmd = Command::new("cmd.exe");
-        cmd.arg("/C").arg(command);
+        let (program, args) = crate::config::config()
+            .tools
+            .windows_input_shell_invocation(command);
+        let mut cmd = Command::new(program);
+        cmd.args(args);
         cmd
     }
 

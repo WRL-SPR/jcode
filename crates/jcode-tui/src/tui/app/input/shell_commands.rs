@@ -3,8 +3,12 @@ use super::*;
 pub(super) fn build_input_shell_command(command: &str) -> std::process::Command {
     #[cfg(windows)]
     {
-        let mut cmd = std::process::Command::new("cmd.exe");
-        cmd.arg("/C").arg(command);
+        // 서버 경로와 같은 `[tools] input_shell` 설정을 따른다 (#630).
+        let (program, args) = crate::config::config()
+            .tools
+            .windows_input_shell_invocation(command);
+        let mut cmd = std::process::Command::new(program);
+        cmd.args(args);
         cmd
     }
 

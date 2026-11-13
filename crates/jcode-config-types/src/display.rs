@@ -115,11 +115,11 @@ pub struct DisplayConfig {
     /// makes the whole file unreadable.
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub colors: std::collections::BTreeMap<String, String>,
-    /// Opt-in active sessions manager: pressing Left arrow on an empty input
+    /// Active sessions manager: pressing Left arrow on an empty input
     /// opens a picker scoped to live (open) sessions, showing which are still
-    /// working and which are ready for input (default: false). The `/active`
+    /// working and which are ready for input (default: true). The `/active`
     /// command works regardless of this setting.
-    #[serde(default)]
+    #[serde(default = "default_true")]
     pub active_sessions_manager: bool,
     /// Include transcripts discovered from other agent CLIs (Claude Code,
     /// Codex, Pi, OpenCode, Cursor) in the session picker so they can be
@@ -242,7 +242,8 @@ impl Default for DisplayConfig {
             keybinding_hints: true,
             theme: String::new(),
             colors: std::collections::BTreeMap::new(),
-            active_sessions_manager: false,
+            // 다른 세션이 작업 중인지 바로 보이도록 기본으로 켠다.
+            active_sessions_manager: true,
             external_sessions: true,
             resume_project_scope: false,
             resume_recent_close_seconds: 30,

@@ -866,6 +866,9 @@ pub struct ToolConfig {
     /// JavaScript in an embedded QuickJS sandbox able to call every other
     /// tool (including MCP tools). Enabled by default.
     pub codemode: bool,
+    /// 입력창 `!` 명령을 실행할 Windows 셸: "cmd"(기본), "powershell", "pwsh" (#630).
+    /// Windows가 아니면 무시하고 bash를 쓴다.
+    pub input_shell: String,
 }
 
 impl Default for ToolConfig {
@@ -880,7 +883,61 @@ impl Default for ToolConfig {
             mcp_tools: McpToolsMode::Auto,
             mcp_tools_token_threshold: 8_000,
             codemode: true,
+            input_shell: String::new(),
         }
+    }
+}
+
+impl ToolConfig {
+    /// 입력창 `!` 명령을 Windows에서 실행할 프로그램과 인자 (#630).
+    /// `input_shell`이 "powershell"/"pwsh"면 PowerShell, 그 외에는 cmd.exe.
+    pub fn windows_input_shell_invocation(&self, command: &str) -> (&'static str, Vec<String>) {
+        let powershell = match self.input_shell.trim().to_ascii_lowercase().as_str() {
+            "powershell" | "powershell.exe" | "windows-powershell" => Some("powershell.exe"),
+            "pwsh" | "pwsh.exe" | "powershell7" | "powershell-7" => Some("pwsh.exe"),
+            _ => None,
+        };
+        match powershell {
+            Some(program) => (
+                program,
+                vec![
+                    "-NoLogo".to_string(),
+                    "-NoProfile".to_string(),
+                    "-NonInteractive".to_string(),
+                    "-Command".to_string(),
+                    // 파이프 출력이 OEM 코드페이지로 깨지지 않도록 UTF-8로 맞춘 뒤 실행한다.
+                    format!("[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; {command}"),
+                ],
+            ),
+            None => ("cmd.exe", vec!["/C".to_string(), command.to_string()]),
+        }
+    }
+}
+
+#[cfg(test)]
+mod input_shell_tests {
+    use super::ToolConfig;
+
+    fn program_for(setting: &str) -> &'static str {
+        let config = ToolConfig {
+            input_shell: setting.to_string(),
+            ..ToolConfig::default()
+        };
+        config.windows_input_shell_invocation("dir").0
+    }
+
+    #[test]
+    fn input_shell_setting_selects_powershell_or_falls_back_to_cmd() {
+        assert_eq!(program_for("pwsh"), "pwsh.exe");
+        assert_eq!(program_for(" PowerShell "), "powershell.exe");
+        assert_eq!(program_for(""), "cmd.exe");
+        assert_eq!(program_for("cmd"), "cmd.exe");
+        assert_eq!(program_for("unknown"), "cmd.exe");
+        let config = ToolConfig::default();
+        assert_eq!(
+            config.windows_input_shell_invocation("echo hi").1,
+            vec!["/C".to_string(), "echo hi".to_string()]
+        );
     }
 }
 

@@ -182,15 +182,15 @@ fn slash_active_opens_active_sessions_picker_locally() {
 }
 
 #[test]
-fn left_arrow_on_empty_input_is_a_noop_unless_opted_in() {
+fn left_arrow_on_empty_input_opens_active_sessions_by_default() {
     let runtime = tokio::runtime::Runtime::new().expect("test runtime");
     let _guard = runtime.enter();
     let mut app = create_test_app();
 
-    // Default config: the active sessions manager gesture is opt-in, so Left
-    // on an empty input must not open any overlay.
-    assert!(!app.maybe_open_active_sessions_on_left());
-    assert!(app.session_picker_overlay.is_none());
+    // 기본 설정에서 활성 세션 관리자가 켜져 있으므로, 빈 입력창의 Left는 세션 목록을 연다.
+    assert!(app.maybe_open_active_sessions_on_left());
+    assert!(app.session_picker_overlay.is_some());
+    app.session_picker_overlay = None;
 
     // With text in the input the gesture never fires regardless of config.
     app.input = "hello".to_string();

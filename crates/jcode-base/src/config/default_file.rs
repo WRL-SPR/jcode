@@ -249,9 +249,9 @@ prompt_entry_animation = true
 
 # Active sessions manager: pressing Left arrow on an empty input opens a
 # picker scoped to live (open) sessions, showing which are still working on a
-# response and which are ready for input (default: false). The /active
+# response and which are ready for input (default: true). The /active
 # command is always available regardless of this setting.
-# active_sessions_manager = false
+# active_sessions_manager = true
 
 # Include transcripts from other agent CLIs (Claude Code, Codex, Pi, OpenCode,
 # Cursor) in the session picker so they can be resumed or imported
@@ -479,6 +479,10 @@ mcp_tools_token_threshold = 8000
 # parallelize calls, and keep intermediate results out of the conversation.
 # Env override: JCODE_CODEMODE=0 to disable.
 codemode = true
+# Windows shell for `!` commands typed in the input box: "cmd" (default),
+# "powershell" (Windows PowerShell 5.1), or "pwsh" (PowerShell 7+).
+# Ignored on other platforms, which always use bash.
+# input_shell = "pwsh"
 
 [compaction]
 # Reactive uses fixed thresholds. Proactive predicts future growth.
