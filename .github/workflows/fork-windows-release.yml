@@ -71,7 +71,9 @@ jobs:
             @("-p", "jcode-tui-mermaid", "--lib", "--", "decide_mode"),
             @("-p", "jcode-config-types"),
             @("-p", "jcode-schema-dialect"),
-            @("-p", "jcode-provider-gemini-runtime")
+            # Gemini 스키마 수정(7e6dec1) 확인용 통합 테스트만. 같은 크레이트의 catalog_tests는
+            # Windows에서 소켓 WouldBlock으로 가끔 실패한다(이번 변경과 무관).
+            @("-p", "jcode-provider-gemini-runtime", "--test", "every_provider_sends_clean_schemas")
           )
           # 로그는 로그인해야 보이므로, 실패한 묶음의 오류 부분만 주석(annotation)으로 남긴다.
           # 주석은 로그인 없이 API로 읽을 수 있다. 실패해도 나머지 묶음은 계속 돌려 한 번에 모은다.
