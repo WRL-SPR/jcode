@@ -279,7 +279,13 @@ fn decide_mode_probes_orca_case_insensitively() {
 fn decide_mode_defaults_to_fast_path() {
     // Env already identified a graphics terminal: stay fast.
     assert_eq!(
-        decide_picker_init_mode(None, Some(ProtocolType::Kitty), Multiplexer::None, None, None),
+        decide_picker_init_mode(
+            None,
+            Some(ProtocolType::Kitty),
+            Multiplexer::None,
+            None,
+            None
+        ),
         PickerInitMode::Fast
     );
     // An env miss must not turn an optional capability query into a
@@ -359,7 +365,11 @@ fn decide_mode_windows_terminal_respects_override_and_env_protocol() {
         PickerInitMode::Fast
     );
     // env가 이미 프로토콜을 정했으면(예: TERM=xterm-sixel, WT 안에서 띄운 WezTerm) 그대로 따른다.
-    for protocol in [ProtocolType::Sixel, ProtocolType::Kitty, ProtocolType::Iterm2] {
+    for protocol in [
+        ProtocolType::Sixel,
+        ProtocolType::Kitty,
+        ProtocolType::Iterm2,
+    ] {
         assert_eq!(
             decide_picker_init_mode(None, Some(protocol), Multiplexer::None, None, wt),
             PickerInitMode::Fast,

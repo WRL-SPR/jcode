@@ -140,7 +140,15 @@ mod runtime_context_tests {
             .collect();
         assert_eq!(
             inside,
-            ["-w", "0", "split-pane", "-p", "Command Prompt", "-d", r"C:\work"]
+            [
+                "-w",
+                "0",
+                "split-pane",
+                "-p",
+                "Command Prompt",
+                "-d",
+                r"C:\work"
+            ]
         );
         let outside: Vec<String> = windows_terminal_resume_args(false, cwd)
             .into_iter()

@@ -126,9 +126,13 @@ mod burst_tests {
         for i in 0..12 {
             note_typed_chars_at("a", start + Duration::from_millis(i));
         }
-        assert!(enter_in_key_stream_paste_at(start + Duration::from_millis(20)));
+        assert!(enter_in_key_stream_paste_at(
+            start + Duration::from_millis(20)
+        ));
         // 빈 줄(연속 Enter)도 줄바꿈으로 유지된다.
-        assert!(enter_in_key_stream_paste_at(start + Duration::from_millis(25)));
+        assert!(enter_in_key_stream_paste_at(
+            start + Duration::from_millis(25)
+        ));
         expire_for_test();
     }
 
@@ -139,7 +143,9 @@ mod burst_tests {
         for i in 0..20 {
             note_typed_chars_at("a", start + Duration::from_millis(i * 80));
         }
-        assert!(!enter_in_key_stream_paste_at(start + Duration::from_millis(1700)));
+        assert!(!enter_in_key_stream_paste_at(
+            start + Duration::from_millis(1700)
+        ));
         expire_for_test();
     }
 
@@ -151,7 +157,9 @@ mod burst_tests {
         for i in 0..3 {
             note_typed_chars_at("a", start + Duration::from_millis(i));
         }
-        assert!(enter_in_key_stream_paste_at(start + Duration::from_millis(3)));
+        assert!(enter_in_key_stream_paste_at(
+            start + Duration::from_millis(3)
+        ));
         expire_for_test();
     }
 
@@ -161,7 +169,9 @@ mod burst_tests {
         expire_for_test();
         let start = Instant::now();
         note_typed_chars_at("한", start);
-        assert!(!enter_in_key_stream_paste_at(start + Duration::from_millis(1)));
+        assert!(!enter_in_key_stream_paste_at(
+            start + Duration::from_millis(1)
+        ));
         expire_for_test();
     }
 
@@ -173,7 +183,9 @@ mod burst_tests {
             note_typed_chars_at("a", start + Duration::from_millis(i * 90));
         }
         // 마지막 글자(180ms) 후 사람 속도로 누른 Enter
-        assert!(!enter_in_key_stream_paste_at(start + Duration::from_millis(300)));
+        assert!(!enter_in_key_stream_paste_at(
+            start + Duration::from_millis(300)
+        ));
         expire_for_test();
     }
 
@@ -184,7 +196,9 @@ mod burst_tests {
         for i in 0..12 {
             note_typed_chars_at("a", start + Duration::from_millis(i));
         }
-        assert!(!enter_in_key_stream_paste_at(start + Duration::from_millis(500)));
+        assert!(!enter_in_key_stream_paste_at(
+            start + Duration::from_millis(500)
+        ));
         expire_for_test();
     }
 }
