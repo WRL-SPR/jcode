@@ -1565,6 +1565,17 @@ impl App {
             finish_mouse_event!(false, "pinned_todos_scroll");
         }
 
+        // 마우스 캡처 중에는 Windows Terminal/conhost의 기본 우클릭 붙여넣기가 동작하지
+        // 않으므로, 입력창 우클릭을 Ctrl+V와 같은 클립보드 붙여넣기로 처리한다 (#928).
+        if matches!(mouse.kind, MouseEventKind::Down(MouseButton::Right))
+            && input_area.is_some_and(|area| {
+                super::super::layout_utils::point_in_rect(mouse.column, mouse.row, area)
+            })
+        {
+            self.paste_from_clipboard();
+            finish_mouse_event!(false, "input_right_click_paste");
+        }
+
         // A left press in the composer moves the caret first (native text-field
         // behavior), then falls through so the shared copy-selection machinery
         // can arm a drag anchor: click repositions the cursor, drag selects the

@@ -33,6 +33,11 @@ pub(in crate::tui::app) fn enter_inserts_newline(
         insert_input_text(app, "\n");
         return true;
     }
+    // 브래킷 붙여넣기 없이 키 입력으로 들어온 여러 줄 붙여넣기의 줄바꿈 (#928).
+    if modifiers.is_empty() && super::paste_guard::enter_in_key_stream_paste() {
+        insert_input_text(app, "\n");
+        return true;
+    }
     consume_backslash_continuation(app)
 }
 

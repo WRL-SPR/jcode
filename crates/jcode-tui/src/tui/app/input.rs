@@ -842,6 +842,11 @@ pub(super) fn handle_text_input(app: &mut App, text: &str) -> bool {
     if text.is_empty() {
         return false;
     }
+    // 키 입력식 붙여넣기는 한 글자씩 들어온다. IME가 여러 글자를 한 번에 확정한 입력은
+    // 붙여넣기로 보지 않도록 한 글자짜리 입력만 센다 (#928).
+    if text.chars().nth(1).is_none() {
+        paste_guard::note_typed_chars(text);
+    }
 
     let onboarding_suggestions = matches!(
         app.onboarding_phase(),
