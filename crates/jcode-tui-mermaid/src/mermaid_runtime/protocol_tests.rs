@@ -240,23 +240,24 @@ fn decide_mode_respects_explicit_override() {
             Some(true),
             Some(ProtocolType::Kitty),
             Multiplexer::None,
+            None,
             None
         ),
         PickerInitMode::Probe
     );
     // Force-off never probes, even on an env miss inside a multiplexer.
     assert_eq!(
-        decide_picker_init_mode(Some(false), None, Multiplexer::Herdr, None),
+        decide_picker_init_mode(Some(false), None, Multiplexer::Herdr, None, None),
         PickerInitMode::Fast
     );
     for term_program in [None, Some("Orca"), Some("kitty"), Some("xterm")] {
         assert_eq!(
-            decide_picker_init_mode(Some(true), None, Multiplexer::None, term_program),
+            decide_picker_init_mode(Some(true), None, Multiplexer::None, term_program, None),
             PickerInitMode::Probe,
             "force-on for {term_program:?}"
         );
         assert_eq!(
-            decide_picker_init_mode(Some(false), None, Multiplexer::None, term_program),
+            decide_picker_init_mode(Some(false), None, Multiplexer::None, term_program, None),
             PickerInitMode::Fast,
             "force-off for {term_program:?}"
         );
@@ -267,7 +268,7 @@ fn decide_mode_respects_explicit_override() {
 fn decide_mode_probes_orca_case_insensitively() {
     for term_program in ["Orca", "orca", "ORCA", "oRcA"] {
         assert_eq!(
-            decide_picker_init_mode(None, None, Multiplexer::None, Some(term_program)),
+            decide_picker_init_mode(None, None, Multiplexer::None, Some(term_program), None),
             PickerInitMode::Probe,
             "{term_program}"
         );
@@ -278,17 +279,17 @@ fn decide_mode_probes_orca_case_insensitively() {
 fn decide_mode_defaults_to_fast_path() {
     // Env already identified a graphics terminal: stay fast.
     assert_eq!(
-        decide_picker_init_mode(None, Some(ProtocolType::Kitty), Multiplexer::None, None),
+        decide_picker_init_mode(None, Some(ProtocolType::Kitty), Multiplexer::None, None, None),
         PickerInitMode::Fast
     );
     // An env miss must not turn an optional capability query into a
     // two-second startup stall. Multiplexer users can opt in explicitly.
     assert_eq!(
-        decide_picker_init_mode(None, None, Multiplexer::Herdr, None),
+        decide_picker_init_mode(None, None, Multiplexer::Herdr, None, None),
         PickerInitMode::Fast
     );
     assert_eq!(
-        decide_picker_init_mode(None, None, Multiplexer::None, None),
+        decide_picker_init_mode(None, None, Multiplexer::None, None, None),
         PickerInitMode::Fast
     );
     for term_program in [
@@ -305,7 +306,7 @@ fn decide_mode_defaults_to_fast_path() {
         Some(" Orca "),
     ] {
         assert_eq!(
-            decide_picker_init_mode(None, None, Multiplexer::None, term_program),
+            decide_picker_init_mode(None, None, Multiplexer::None, term_program, None),
             PickerInitMode::Fast,
             "{term_program:?}"
         );
@@ -321,11 +322,67 @@ fn decide_mode_keeps_orca_multiplexers_fast_unless_forced() {
         Multiplexer::Zellij,
     ] {
         assert_eq!(
-            decide_picker_init_mode(None, None, multiplexer, Some("Orca")),
+            decide_picker_init_mode(None, None, multiplexer, Some("Orca"), None),
             PickerInitMode::Fast
         );
         assert_eq!(
-            decide_picker_init_mode(Some(true), None, multiplexer, Some("Orca")),
+            decide_picker_init_mode(Some(true), None, multiplexer, Some("Orca"), None),
+            PickerInitMode::Probe
+        );
+    }
+}
+
+// Windows Terminal(WT_SESSION)은 env로 프로토콜을 알 수 없으므로 실제 질의로 Sixel 여부를 확인한다.
+#[test]
+fn decide_mode_probes_windows_terminal_without_env_protocol() {
+    let wt = Some("0f1e2d3c-aaaa-bbbb-cccc-1234567890ab");
+    assert_eq!(
+        decide_picker_init_mode(None, None, Multiplexer::None, None, wt),
+        PickerInitMode::Probe
+    );
+    // 빈 값은 설정되지 않은 것으로 본다.
+    for wt_session in [None, Some(""), Some("  ")] {
+        assert_eq!(
+            decide_picker_init_mode(None, None, Multiplexer::None, None, wt_session),
+            PickerInitMode::Fast,
+            "{wt_session:?}"
+        );
+    }
+}
+
+#[test]
+fn decide_mode_windows_terminal_respects_override_and_env_protocol() {
+    let wt = Some("0f1e2d3c-aaaa-bbbb-cccc-1234567890ab");
+    // JCODE_MERMAID_PICKER_PROBE=0 이면 질의하지 않고 halfblocks(fast)로 둔다.
+    assert_eq!(
+        decide_picker_init_mode(Some(false), None, Multiplexer::None, None, wt),
+        PickerInitMode::Fast
+    );
+    // env가 이미 프로토콜을 정했으면(예: TERM=xterm-sixel, WT 안에서 띄운 WezTerm) 그대로 따른다.
+    for protocol in [ProtocolType::Sixel, ProtocolType::Kitty, ProtocolType::Iterm2] {
+        assert_eq!(
+            decide_picker_init_mode(None, Some(protocol), Multiplexer::None, None, wt),
+            PickerInitMode::Fast,
+            "{protocol:?}"
+        );
+    }
+}
+
+#[test]
+fn decide_mode_keeps_windows_terminal_multiplexers_fast_unless_forced() {
+    let wt = Some("0f1e2d3c-aaaa-bbbb-cccc-1234567890ab");
+    for multiplexer in [
+        Multiplexer::Tmux,
+        Multiplexer::Screen,
+        Multiplexer::Herdr,
+        Multiplexer::Zellij,
+    ] {
+        assert_eq!(
+            decide_picker_init_mode(None, None, multiplexer, None, wt),
+            PickerInitMode::Fast
+        );
+        assert_eq!(
+            decide_picker_init_mode(Some(true), None, multiplexer, None, wt),
             PickerInitMode::Probe
         );
     }

@@ -132,6 +132,24 @@ mod runtime_context_tests {
     use super::*;
 
     #[test]
+    fn windows_terminal_resume_args_split_inside_wt() {
+        let cwd = std::path::Path::new(r"C:\work");
+        let inside: Vec<String> = windows_terminal_resume_args(true, cwd)
+            .into_iter()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            inside,
+            ["-w", "0", "split-pane", "-p", "Command Prompt", "-d", r"C:\work"]
+        );
+        let outside: Vec<String> = windows_terminal_resume_args(false, cwd)
+            .into_iter()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(outside, ["-p", "Command Prompt"]);
+    }
+
+    #[test]
     fn app_core_runtime_allowlist_facade_is_portable() {
         let _: &'static [&'static str] = crate::terminal_launch::RUNTIME_ENV_VARS;
         assert!(crate::terminal_launch::RUNTIME_ENV_VARS.contains(&"JCODE_SOCKET"));
@@ -617,12 +635,41 @@ fn resume_terminal_candidates_windows() -> Vec<String> {
         })
         .filter(|candidates| !candidates.is_empty())
         .unwrap_or_else(|| {
-            vec![
-                "wezterm".to_string(),
-                "wt".to_string(),
-                "alacritty".to_string(),
-            ]
+            // Windows Terminal 안에서 실행 중이면 같은 창의 분할 창으로 여는 wt를 먼저 쓴다.
+            if std::env::var_os("WT_SESSION").is_some() {
+                vec![
+                    "wt".to_string(),
+                    "wezterm".to_string(),
+                    "alacritty".to_string(),
+                ]
+            } else {
+                vec![
+                    "wezterm".to_string(),
+                    "wt".to_string(),
+                    "alacritty".to_string(),
+                ]
+            }
         })
+}
+
+/// 세션 재개 창을 여는 `wt.exe` 인자. Windows Terminal 안이면 현재 창(`-w 0`)을
+/// 나눠 옆에 띄우고, 밖이면 기존처럼 새 창으로 연다. 분할 요청은 기존 WT 프로세스가
+/// 처리해 wt.exe의 작업 폴더가 전달되지 않으므로 `-d`로 넘긴다.
+#[cfg_attr(unix, allow(dead_code))]
+fn windows_terminal_resume_args(
+    inside_windows_terminal: bool,
+    cwd: &std::path::Path,
+) -> Vec<std::ffi::OsString> {
+    let mut args: Vec<std::ffi::OsString> = Vec::new();
+    if inside_windows_terminal {
+        args.extend(["-w", "0", "split-pane"].map(std::ffi::OsString::from));
+    }
+    args.extend(["-p", "Command Prompt"].map(std::ffi::OsString::from));
+    if inside_windows_terminal {
+        args.push("-d".into());
+        args.push(cwd.as_os_str().to_owned());
+    }
+    args
 }
 
 #[cfg(not(unix))]
@@ -714,13 +761,16 @@ pub fn spawn_resume_in_new_terminal_with_context(
                     continue;
                 }
                 let mut cmd = Command::new("wt.exe");
-                cmd.args(["-p", "Command Prompt"])
-                    .arg(exe)
-                    .args(&jcode_args)
-                    .current_dir(cwd)
-                    .stdin(Stdio::null())
-                    .stdout(Stdio::null())
-                    .stderr(Stdio::null());
+                cmd.args(windows_terminal_resume_args(
+                    std::env::var_os("WT_SESSION").is_some(),
+                    cwd,
+                ))
+                .arg(exe)
+                .args(&jcode_args)
+                .current_dir(cwd)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null());
                 crate::terminal_launch::apply_runtime_env(&mut cmd, &context.runtime_env);
                 crate::platform::spawn_detached(&mut cmd)
             }

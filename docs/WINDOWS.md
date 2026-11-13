@@ -148,6 +148,12 @@ Unix domain sockets are replaced by Windows named pipes under `crates/jcode-base
 
 Windows launch-hotkey setup is implemented in `crates/jcode-setup-hints/src/windows_setup.rs` and is only installed after explicit user consent.
 
+## Inline images in Windows Terminal
+
+When `WT_SESSION` is set, Jcode queries Windows Terminal at startup and renders screenshots and Mermaid diagrams with Sixel if the terminal reports support (Windows Terminal 1.22 or later). Older versions, or a query that fails or times out, fall back to text halfblocks.
+
+To skip the query and always use halfblocks, set `$env:JCODE_MERMAID_PICKER_PROBE = "0"` before launching Jcode.
+
 ## Reporting Windows problems
 
 Include the following in a GitHub issue:

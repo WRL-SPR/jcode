@@ -217,15 +217,24 @@ fn parse_env_bool(raw: &str) -> Option<bool> {
 ///   so the probe respects that setting. Other terminals keep the fast path because
 ///   the upstream stdio probe can block for two seconds if they do not answer.
 ///   Multiplexer users can opt into the probe with `JCODE_MERMAID_PICKER_PROBE=1`.
+/// * `wt_session` is `WT_SESSION`. Windows Terminal + PowerShell sets none of
+///   the identity vars `infer_protocol_from_env` reads, yet WT 1.22+ supports
+///   Sixel and answers DA1, so it is probed too (only outside multiplexers and
+///   when env detection found nothing).
 pub(super) fn decide_picker_init_mode(
     probe_override: Option<bool>,
-    _env_protocol: Option<ProtocolType>,
+    env_protocol: Option<ProtocolType>,
     multiplexer: Multiplexer,
     term_program: Option<&str>,
+    wt_session: Option<&str>,
 ) -> PickerInitMode {
+    // Windows Terminal: env로 프로토콜을 알 수 없을 때만 실제 질의(probe)로 Sixel 지원을 확인한다.
+    // 질의가 실패하거나 시간 초과되면 probe_picker()가 fast picker(halfblocks)를 그대로 쓴다.
+    let windows_terminal = env_is_set(wt_session) && env_protocol.is_none();
     if probe_override.unwrap_or(
         multiplexer == Multiplexer::None
-            && term_program.is_some_and(|program| program.eq_ignore_ascii_case("Orca")),
+            && (windows_terminal
+                || term_program.is_some_and(|program| program.eq_ignore_ascii_case("Orca"))),
     ) {
         PickerInitMode::Probe
     } else {
@@ -460,6 +469,7 @@ pub fn init_picker() {
             env_protocol,
             multiplexer,
             std::env::var("TERM_PROGRAM").ok().as_deref(),
+            std::env::var("WT_SESSION").ok().as_deref(),
         );
         crate::log_info(&format!(
             "Mermaid picker init: mode={:?} multiplexer={} env_protocol={:?} probe_override={:?}",
