@@ -436,11 +436,14 @@ impl Tool for McpCallTool {
         drop(manager);
 
         let mut output_parts = Vec::new();
+        // MCP 이미지(Playwright 스크린샷 등)를 버리지 않고 모델·TUI로 넘긴다.
+        let mut images = Vec::new();
         for block in result.content {
             match block {
                 ContentBlock::Text { text } => output_parts.push(text),
                 ContentBlock::Image { data, mime_type } => {
                     output_parts.push(format!("[Image: {} ({} bytes)]", mime_type, data.len()));
+                    crate::mcp::push_forwardable_image(&mut images, mime_type, data);
                 }
                 ContentBlock::Resource { resource } => {
                     if let Some(rendered) = crate::applets::mount_mcp_resource(
@@ -472,11 +475,15 @@ impl Tool for McpCallTool {
             crate::mcp::budget::fit_to_budget(&output, crate::mcp::budget::MCP_RESULT_TOKEN_BUDGET)
         };
         let title = format!("mcp:{}:{}", params.server, params.tool);
-        if result.is_error {
-            Ok(ToolOutput::new(format!("Error: {}", output)).with_title(title))
+        let mut tool_output = if result.is_error {
+            ToolOutput::new(format!("Error: {}", output)).with_title(title)
         } else {
-            Ok(ToolOutput::new(output).with_title(title))
+            ToolOutput::new(output).with_title(title)
+        };
+        for (mime_type, data) in images {
+            tool_output = tool_output.with_image(mime_type, data);
         }
+        Ok(tool_output)
     }
 }
 

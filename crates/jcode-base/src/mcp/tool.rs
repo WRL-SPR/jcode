@@ -77,6 +77,7 @@ impl Tool for McpTool {
 
         // Convert MCP content blocks to output string
         let mut output_parts = Vec::new();
+        let mut images = Vec::new();
         for block in result.content {
             match block {
                 ContentBlock::Text { text } => {
@@ -84,6 +85,7 @@ impl Tool for McpTool {
                 }
                 ContentBlock::Image { data, mime_type } => {
                     output_parts.push(format!("[Image: {} ({} bytes)]", mime_type, data.len()));
+                    push_forwardable_image(&mut images, mime_type, data);
                 }
                 ContentBlock::Resource { resource } => {
                     if let Some(rendered) = crate::applets::mount_mcp_resource(
@@ -117,11 +119,32 @@ impl Tool for McpTool {
         };
         let title = format!("mcp:{}:{}", self.server_name, self.tool_def.name);
 
-        if result.is_error {
-            Ok(ToolOutput::new(format!("Error: {}", output)).with_title(title))
+        let mut tool_output = if result.is_error {
+            ToolOutput::new(format!("Error: {}", output)).with_title(title)
         } else {
-            Ok(ToolOutput::new(output).with_title(title))
+            ToolOutput::new(output).with_title(title)
+        };
+        for (mime_type, data) in images {
+            tool_output = tool_output.with_image(mime_type, data);
         }
+        Ok(tool_output)
+    }
+}
+
+const MCP_MAX_IMAGES: usize = 4;
+const MCP_MAX_IMAGE_BYTES: usize = 16_000_000;
+
+/// MCP 이미지 결과(Playwright 스크린샷 등)를 모델·TUI로 넘길 목록에 담는다.
+/// 공급자가 받는 형식만, 브라우저 도구와 같은 한도(최대 4장, 합계 16MB) 안에서 담고
+/// 나머지는 호출부가 남긴 `[Image: ...]` 문구로만 표시된다.
+pub fn push_forwardable_image(images: &mut Vec<(String, String)>, mime_type: String, data: String) {
+    let supported = matches!(
+        mime_type.trim().to_ascii_lowercase().as_str(),
+        "image/png" | "image/jpeg" | "image/jpg" | "image/gif" | "image/webp"
+    );
+    let total: usize = images.iter().map(|(_, existing)| existing.len()).sum();
+    if supported && images.len() < MCP_MAX_IMAGES && total + data.len() <= MCP_MAX_IMAGE_BYTES {
+        images.push((mime_type, data));
     }
 }
 
@@ -413,5 +436,26 @@ mod tests {
         assert_eq!(first.len(), 2);
         assert_ne!(first[0], first[1]);
         assert!(first.iter().all(|name| name.starts_with("mcp__")));
+    }
+}
+
+#[cfg(test)]
+mod forwardable_image_tests {
+    use super::push_forwardable_image;
+
+    #[test]
+    fn forwards_supported_images_within_limits() {
+        let mut images = Vec::new();
+        push_forwardable_image(&mut images, "image/png".into(), "aaaa".into());
+        push_forwardable_image(&mut images, "image/svg+xml".into(), "bbbb".into());
+        push_forwardable_image(&mut images, "IMAGE/JPEG".into(), "cccc".into());
+        assert_eq!(images.len(), 2);
+        for _ in 0..5 {
+            push_forwardable_image(&mut images, "image/png".into(), "d".into());
+        }
+        assert_eq!(images.len(), 4);
+        let mut big = Vec::new();
+        push_forwardable_image(&mut big, "image/png".into(), "x".repeat(16_000_001));
+        assert!(big.is_empty());
     }
 }
