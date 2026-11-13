@@ -1,4 +1,5 @@
 use super::*;
+#[cfg(unix)]
 use std::time::Duration;
 
 #[test]
@@ -22,6 +23,8 @@ fn recent_history_negotiation_preserves_local_verified_prefix() {
     );
 }
 
+// 더미 피어의 readable()/try_read()는 Unix 소켓에만 있어 Windows에서 컴파일되지 않는다.
+#[cfg(unix)]
 #[tokio::test]
 async fn recent_history_page_request_explicitly_selects_normal_transcript() {
     let mut remote = RemoteConnection::dummy();
@@ -36,6 +39,8 @@ async fn recent_history_page_request_explicitly_selects_normal_transcript() {
     );
 }
 
+// 더미 피어의 readable()/try_read()는 Unix 소켓에만 있어 Windows에서 컴파일되지 않는다.
+#[cfg(unix)]
 #[tokio::test]
 async fn slow_usage_hydration_does_not_block_subscribe_or_async_runtime() {
     let (started_tx, started_rx) = tokio::sync::oneshot::channel();
