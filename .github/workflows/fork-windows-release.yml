@@ -43,6 +43,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
+          components: rustfmt
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -51,6 +52,7 @@ jobs:
       - name: Test changed areas
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
           $suites = @(
             @("-p", "jcode-tui", "--lib", "--", "paste"),
             @("-p", "jcode-tui", "--lib", "--", "newline"),
@@ -69,10 +71,48 @@ jobs:
             @("-p", "jcode-schema-dialect"),
             @("-p", "jcode-provider-gemini-runtime")
           )
+          # 로그는 로그인해야 보이므로, 실패한 묶음의 오류 부분만 주석(annotation)으로 남긴다.
+          # 주석은 로그인 없이 API로 읽을 수 있다. 실패해도 나머지 묶음은 계속 돌려 한 번에 모은다.
+          $failed = 0
           foreach ($suite in $suites) {
-            Write-Host "cargo test --locked $($suite -join ' ')"
-            & cargo test --locked @suite
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $name = $suite -join ' '
+            Write-Host "cargo test --locked $name"
+            $out = & cargo test --locked @suite 2>&1 | ForEach-Object { "$_" }
+            $code = $LASTEXITCODE
+            $out | ForEach-Object { Write-Host $_ }
+            if ($code -ne 0) {
+              $failed++
+              $picked = New-Object System.Collections.Generic.List[string]
+              $take = 0
+              foreach ($line in $out) {
+                if ($line -match '^(error|warning: unused)|^---- .* stdout ----|panicked at|^failures:|test result: FAILED') { $take = 25 }
+                if ($take -gt 0) {
+                  $picked.Add($line)
+                  $take--
+                  if ($line -eq '') { $take = 0 }
+                }
+              }
+              $msg = ($picked | Select-Object -First 200) -join "`n"
+              if ($msg.Length -gt 12000) { $msg = $msg.Substring(0, 12000) }
+              $msg = $msg.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+              Write-Host "::error title=cargo test $name::$msg"
+            }
+          }
+          if ($failed -gt 0) { exit 1 }
+
+      # 원본 CI의 Format 검사와 같은 확인. 차이는 주석으로 남기되 릴리스는 막지 않는다.
+      - name: Check formatting
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $out = & cargo fmt --all -- --check 2>&1 | ForEach-Object { "$_" }
+          if ($LASTEXITCODE -ne 0) {
+            $msg = ($out | Select-Object -First 300) -join "`n"
+            if ($msg.Length -gt 12000) { $msg = $msg.Substring(0, 12000) }
+            $msg = $msg.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Host "::warning title=cargo fmt --check::$msg"
           }
 
       - name: Build release binary
