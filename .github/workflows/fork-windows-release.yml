@@ -96,7 +96,9 @@ jobs:
               $msg = ($picked | Select-Object -First 200) -join "`n"
               if ($msg.Length -gt 12000) { $msg = $msg.Substring(0, 12000) }
               $msg = $msg.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
-              Write-Host "::error title=cargo test $name::$msg"
+              # 속성 값의 ':'와 ','는 워크플로 명령 구분자라 escape해야 주석이 남는다 (예: tool::mcp).
+              $title = "cargo test $name".Replace('%', '%25').Replace(':', '%3A').Replace(',', '%2C')
+              Write-Host "::error title=$title::$msg"
             }
           }
           if ($failed -gt 0) { exit 1 }
