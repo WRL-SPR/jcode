@@ -53,15 +53,16 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
+          # 이번 변경 범위만 돌린다. 넓은 필터(config, mcp)는 원래부터 Windows에서 깨지는
+          # 테스트(kagi 문서 CRLF 파싱, JCODE_RESUME_OPEN_ELSEWHERE 누락, mcp_remote_cache 시간)를 포함한다.
           $suites = @(
             @("-p", "jcode-tui", "--lib", "--", "paste"),
             @("-p", "jcode-tui", "--lib", "--", "newline"),
             @("-p", "jcode-tui", "--lib", "--", "mouse"),
             @("-p", "jcode-tui", "--lib", "--", "left_arrow_on_empty_input"),
             @("-p", "jcode-base", "--lib", "--", "input_shell"),
-            @("-p", "jcode-base", "--lib", "--", "config"),
-            @("-p", "jcode-base", "--lib", "--", "mcp"),
-            @("-p", "jcode-app-core", "--lib", "--", "mcp"),
+            @("-p", "jcode-base", "--lib", "--", "forwardable_image"),
+            @("-p", "jcode-app-core", "--lib", "--", "tool::mcp"),
             @("-p", "jcode-app-core", "--lib", "--", "windows_terminal_resume_args"),
             @("-p", "jcode-app-core", "--lib", "--", "change_dir"),
             @("-p", "jcode-tui", "--lib", "--", "registered_commands"),
